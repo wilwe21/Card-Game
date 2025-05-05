@@ -1,0 +1,13 @@
+
+[package]
+name = "executor"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fyrox = { workspace = true }
+CardGame = { path = "../game", optional = true }
+
+[features]
+default = ["CardGame"]
+dylib = ["fyrox/dylib"]
