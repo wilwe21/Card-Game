@@ -29,15 +29,6 @@ pub struct Player {
     #[reflect(hidden)]
     pitch: f32,
 
-    #[reflect(hidden)]
-    x: f32,
-
-    #[reflect(hidden)]
-    y: f32,
-
-    #[reflect(hidden)]
-    z: f32,
-
     curPitch: f32,
     curYaw: f32,
 
@@ -47,12 +38,17 @@ pub struct Player {
     camera: Handle<Node>,
     rigid_body: Handle<Node>,
 
+    z: f32,
+    curZ: f32,
+    zmoving: bool,
+    zmoving_speed: f32,
+
     curtRot: String,
 }
 
 impl Player {
     fn camera_move(&mut self, key: PhysicalKey) {
-        if self.moving {
+        if self.moving || self.zmoving {
             return;
         }
         if let PhysicalKey::Code(code) = key {
@@ -96,15 +92,17 @@ impl Player {
     }
 
     fn pose_neutral(&mut self) {
+        if self.curtRot == "board".to_string() {
+            self.zmoving = true;
+            self.curZ = self.z;
+            self.z = 0.0_f32;
+        }
         self.curtRot = "neutral".to_string();
         self.moving = true;
         self.curPitch = self.pitch;
         self.curYaw = self.yaw;
         self.pitch = 0.0_f32;
         self.yaw = 0.0_f32;
-        self.x = 0.0_f32;
-        self.y = 4.0_f32;
-        self.z = -4.0_f32
     }
 
     fn pose_left(&mut self) {
@@ -114,10 +112,9 @@ impl Player {
         self.curPitch = self.pitch;
         self.curYaw = self.yaw;
         self.pitch = 0.0_32;
-        self.yaw = 15.0_f32;
-        self.x = 0.0_f32;
-        self.y = 4.0_f32;
-        self.z = -4.0_f32
+        self.yaw = 20.0_f32;
+        self.curZ = self.z;
+        self.z = 0.0_f32;
     }
 
     fn pose_right(&mut self) {
@@ -127,10 +124,9 @@ impl Player {
         self.curPitch = self.pitch;
         self.curYaw = self.yaw;
         self.pitch = 0.0_32;
-        self.yaw = -15.0_f32;
-        self.x = 0.0_f32;
-        self.y = 4.0_f32;
-        self.z = -4.0_f32
+        self.yaw = -20.0_f32;
+        self.curZ = self.z;
+        self.z = 0.0_f32;
     }
 
     fn pose_cards(&mut self) {
@@ -139,11 +135,10 @@ impl Player {
         self.moving_speed = 1_f32;
         self.curPitch = self.pitch;
         self.curYaw = self.yaw;
-        self.pitch = 15.0_f32;
+        self.pitch = 20.0_f32;
         self.yaw = 0.0_f32;
-        self.x = 0.0_f32;
-        self.y = 4.0_f32;
-        self.z = -4.0_f32
+        self.curZ = self.z;
+        self.z = 0.0_f32;
     }
 
     fn pose_board(&mut self) {
@@ -154,9 +149,9 @@ impl Player {
         self.curYaw = self.yaw;
         self.pitch = 90.0_f32;
         self.yaw = 0.0_f32;
-        self.x = 0.0_f32;
-        self.y = 4.0_f32;
-        self.z = 0.0_f32
+        self.zmoving = true;
+        self.curZ = self.z;
+        self.z = 240_f32;
     }
 
 }
@@ -169,9 +164,13 @@ impl ScriptTrait for Player {
     fn on_start(&mut self, context: &mut ScriptContext) {
         self.curtRot = "neutral".to_string();
         self.moving_speed = 1.0_f32;
+        self.zmoving_speed = 5.0_f32;
         self.moving = false;
+        self.zmoving = false;
         self.curPitch = 0.0_f32;
         self.curYaw = 0.0_f32;
+        self.z = 0.0_f32;
+        self.curZ = 0.0_f32;
         // There should be a logic that depends on other scripts in scene.
         // It is called right after **all** scripts were initialized.
     }
@@ -181,7 +180,7 @@ impl ScriptTrait for Player {
     }
 
     fn on_os_event(&mut self, event: &Event<()>, context: &mut ScriptContext) {
-         match event {
+        match event {
             // Raw mouse input is responsible for camera rotation.
             Event::WindowEvent { event, ..} => {
                 if let WindowEvent::KeyboardInput { device_id, event, is_synthetic } = event {
@@ -198,14 +197,27 @@ impl ScriptTrait for Player {
         let mut look_vector = Vector3::default();
         let mut side_vector = Vector3::default();
         if let Some(camera) = context.scene.graph.try_get_mut(self.camera) {
+            let ri = camera.as_rigid_body_mut();
+            if self.zmoving {
+                println!("z:{}, curZ:{}", self.z, self.curZ);
+                if self.z > self.curZ {
+                    ri.set_lin_vel(Vector3::new(0.0, 0.0, self.zmoving_speed));
+                    self.curZ += self.zmoving_speed;
+                } else if self.z < self.curZ {
+                    ri.set_lin_vel(Vector3::new(0.0, 0.0, -self.zmoving_speed));
+                    self.curZ -= self.zmoving_speed;
+                } else {
+                    ri.set_lin_vel(Vector3::new(0.0, 0.0, 0.0));
+                    self.zmoving = false;
+                }
+            }
+
             look_vector = camera.look_vector();
             side_vector = camera.side_vector();
 
             let mut mov_yaw = self.yaw.to_radians();
             let mut mov_pitch = self.pitch.to_radians();
             if self.moving {
-                println!("cur pitch: {}\npitch: {}", self.curPitch, self.pitch);
-                println!("cur yaw: {}\nyaw: {}", self.curPitch, self.yaw);
                 if self.curYaw > self.yaw.floor() {
                     if self.curYaw -self.moving_speed > self.yaw.floor() {
                         mov_yaw = (self.curYaw.floor() - self.moving_speed).to_radians();
@@ -256,11 +268,6 @@ impl ScriptTrait for Player {
                     mov_pitch,
                 ) * yaw,
             );
-
-            if let Some(rigid) = context.scene.graph.try_get_mut(self.rigid_body) {
-                let ri = rigid.as_rigid_body_mut();
-                ri.set_lin_vel(Vector3::new(0.0, 20.0, 0.0));
-            }
         }
     }
 }
