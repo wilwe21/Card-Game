@@ -36,7 +36,6 @@ pub struct Player {
     moving_speed: f32,
 
     camera: Handle<Node>,
-    rigid_body: Handle<Node>,
 
     z: f32,
     curZ: f32,
@@ -56,33 +55,41 @@ impl Player {
                 "neutral" => {
                     match code {
                         KeyCode::KeyW => self.pose_board(),
+                        KeyCode::ArrowUp => self.pose_board(),
                         KeyCode::KeyS => self.pose_cards(),
+                        KeyCode::ArrowDown => self.pose_cards(),
                         KeyCode::KeyA => self.pose_left(),
+                        KeyCode::ArrowLeft => self.pose_left(),
                         KeyCode::KeyD => self.pose_right(),
+                        KeyCode::ArrowRight => self.pose_right(),
                         _ => (),
                     } 
                 },
                 "left" => {
                     match code {
                         KeyCode::KeyD => self.pose_neutral(),
+                        KeyCode::ArrowRight => self.pose_neutral(),
                         _ => (),
                     }
                 },
                 "right" => {
                     match code {
                         KeyCode::KeyA => self.pose_neutral(),
+                        KeyCode::ArrowLeft => self.pose_neutral(),
                         _ => (),
                     }
                 },
                 "cards" => {
                     match code {
                         KeyCode::KeyW => self.pose_neutral(),
+                        KeyCode::ArrowUp => self.pose_neutral(),
                         _ => (),
                     }
                 },
                 "board" => {
                     match code {
                         KeyCode::KeyS => self.pose_neutral(),
+                        KeyCode::ArrowDown => self.pose_neutral(),
                         _ => (),
                     }
                 },
@@ -92,7 +99,14 @@ impl Player {
     }
 
     fn pose_neutral(&mut self) {
-        if self.curtRot == "board".to_string() {
+        if self.curtRot == "board".to_string() || 
+            self.curtRot == "left".to_string() ||
+            self.curtRot == "right".to_string() {
+            if self.curtRot == "board".to_string() {
+                self.zmoving_speed = 20_f32;
+            } else {
+                self.zmoving_speed = 5_f32;
+            }
             self.zmoving = true;
             self.curZ = self.z;
             self.z = 0.0_f32;
@@ -108,31 +122,35 @@ impl Player {
     fn pose_left(&mut self) {
         self.curtRot = "left".to_string();
         self.moving = true;
-        self.moving_speed = 1_f32;
+        self.moving_speed = 2.5_f32;
         self.curPitch = self.pitch;
         self.curYaw = self.yaw;
         self.pitch = 0.0_32;
         self.yaw = 20.0_f32;
+        self.zmoving = true;
+        self.zmoving_speed = 5_f32;
         self.curZ = self.z;
-        self.z = 0.0_f32;
+        self.z = 50.0_f32;
     }
 
     fn pose_right(&mut self) {
         self.curtRot = "right".to_string();
         self.moving = true;
-        self.moving_speed = 1_f32;
+        self.moving_speed = 2.5_f32;
         self.curPitch = self.pitch;
         self.curYaw = self.yaw;
         self.pitch = 0.0_32;
         self.yaw = -20.0_f32;
+        self.zmoving = true;
+        self.zmoving_speed = 5_f32;
         self.curZ = self.z;
-        self.z = 0.0_f32;
+        self.z = 50.0_f32;
     }
 
     fn pose_cards(&mut self) {
         self.curtRot = "cards".to_string();
         self.moving = true;
-        self.moving_speed = 1_f32;
+        self.moving_speed = 2.5_f32;
         self.curPitch = self.pitch;
         self.curYaw = self.yaw;
         self.pitch = 20.0_f32;
@@ -150,7 +168,8 @@ impl Player {
         self.pitch = 90.0_f32;
         self.yaw = 0.0_f32;
         self.zmoving = true;
-        self.curZ = self.z;
+        self.zmoving_speed = 20_f32;
+        self.curZ= self.z;
         self.z = 240_f32;
     }
 
@@ -197,18 +216,20 @@ impl ScriptTrait for Player {
         let mut look_vector = Vector3::default();
         let mut side_vector = Vector3::default();
         if let Some(camera) = context.scene.graph.try_get_mut(self.camera) {
-            let ri = camera.as_rigid_body_mut();
-            if self.zmoving {
-                println!("z:{}, curZ:{}", self.z, self.curZ);
-                if self.z > self.curZ {
-                    ri.set_lin_vel(Vector3::new(0.0, 0.0, self.zmoving_speed));
-                    self.curZ += self.zmoving_speed;
-                } else if self.z < self.curZ {
-                    ri.set_lin_vel(Vector3::new(0.0, 0.0, -self.zmoving_speed));
-                    self.curZ -= self.zmoving_speed;
-                } else {
-                    ri.set_lin_vel(Vector3::new(0.0, 0.0, 0.0));
-                    self.zmoving = false;
+            if camera.is_rigid_body() {
+                let ri = camera.as_rigid_body_mut();
+                if self.zmoving {
+                    println!("z:{}, curZ:{}", self.z, self.curZ);
+                    if self.z > self.curZ {
+                        ri.set_lin_vel(Vector3::new(0.0, 0.0, self.zmoving_speed));
+                        self.curZ += self.zmoving_speed;
+                    } else if self.z < self.curZ {
+                        ri.set_lin_vel(Vector3::new(0.0, 0.0, -self.zmoving_speed));
+                        self.curZ -= self.zmoving_speed;
+                    } else {
+                        ri.set_lin_vel(Vector3::new(0.0, 0.0, 0.0));
+                        self.zmoving = false;
+                    }
                 }
             }
 
@@ -223,16 +244,18 @@ impl ScriptTrait for Player {
                         mov_yaw = (self.curYaw.floor() - self.moving_speed).to_radians();
                         self.curYaw -= self.moving_speed;
                     } else {
-                        mov_yaw = self.yaw.floor();
-                        self.curYaw = self.yaw.floor();
+                        //mov_yaw = self.yaw.floor();
+                        //self.curYaw = self.yaw.floor();
+                        self.moving = false;
                     }
                 } else if self.curYaw < self.yaw.floor() {
                     if self.curYaw + self.moving_speed < self.yaw {
                         mov_yaw = (self.curYaw.floor() + self.moving_speed).to_radians();
                         self.curYaw += self.moving_speed;
                     } else {
-                        mov_yaw = self.yaw.floor();
-                        self.curYaw = self.yaw.floor()
+                        //mov_yaw = self.yaw.floor();
+                        //self.curYaw = self.yaw.floor()
+                        self.moving = false;
                     }
                 }
                 if self.curPitch > self.pitch.floor() {
@@ -240,16 +263,18 @@ impl ScriptTrait for Player {
                         mov_pitch = (self.curPitch.floor() - self.moving_speed).to_radians();
                         self.curPitch -= self.moving_speed;
                     } else {
-                        mov_pitch = self.pitch.floor();
-                        self.curPitch = self.pitch.floor();
+                        //mov_pitch = self.pitch.floor();
+                        //self.curPitch = self.pitch.floor();
+                        self.moving = false;
                     }
                 } else if self.curPitch < self.pitch.floor() {
                     if self.curPitch.floor() - self.moving_speed < self.pitch.floor() {
                         mov_pitch = (self.curPitch.floor() + self.moving_speed).to_radians();
                         self.curPitch += self.moving_speed;
                     } else {
-                        mov_pitch = self.pitch.floor();
-                        self.curPitch = self.pitch.floor();
+                        //mov_pitch = self.pitch.floor();
+                        //self.curPitch = self.pitch.floor();
+                        self.moving = false;
                     }
                 }
 
