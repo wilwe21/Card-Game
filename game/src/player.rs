@@ -115,8 +115,8 @@ impl Player {
         self.moving = true;
         self.curPitch = self.pitch;
         self.curYaw = self.yaw;
-        self.pitch = 0.0_f32;
-        self.yaw = 0.0_f32;
+        self.pitch = 0_f32;
+        self.yaw = 0_f32;
     }
 
     fn pose_left(&mut self) {
@@ -219,7 +219,6 @@ impl ScriptTrait for Player {
             if camera.is_rigid_body() {
                 let ri = camera.as_rigid_body_mut();
                 if self.zmoving {
-                    println!("z:{}, curZ:{}", self.z, self.curZ);
                     if self.z > self.curZ {
                         ri.set_lin_vel(Vector3::new(0.0, 0.0, self.zmoving_speed));
                         self.curZ += self.zmoving_speed;
@@ -240,42 +239,41 @@ impl ScriptTrait for Player {
             let mut mov_pitch = self.pitch.to_radians();
             if self.moving {
                 if self.curYaw > self.yaw.floor() {
-                    if self.curYaw -self.moving_speed > self.yaw.floor() {
+                    if self.curYaw > self.yaw.floor() {
                         mov_yaw = (self.curYaw.floor() - self.moving_speed).to_radians();
                         self.curYaw -= self.moving_speed;
                     } else {
-                        //mov_yaw = self.yaw.floor();
-                        //self.curYaw = self.yaw.floor();
                         self.moving = false;
                     }
                 } else if self.curYaw < self.yaw.floor() {
-                    if self.curYaw + self.moving_speed < self.yaw {
+                    if self.curYaw < self.yaw {
                         mov_yaw = (self.curYaw.floor() + self.moving_speed).to_radians();
                         self.curYaw += self.moving_speed;
                     } else {
-                        //mov_yaw = self.yaw.floor();
-                        //self.curYaw = self.yaw.floor()
                         self.moving = false;
                     }
                 }
                 if self.curPitch > self.pitch.floor() {
-                    if self.curPitch.floor() - self.moving_speed > self.pitch.floor() {
+                    if self.curPitch.floor() > self.pitch.floor() {
                         mov_pitch = (self.curPitch.floor() - self.moving_speed).to_radians();
                         self.curPitch -= self.moving_speed;
                     } else {
-                        //mov_pitch = self.pitch.floor();
-                        //self.curPitch = self.pitch.floor();
                         self.moving = false;
                     }
                 } else if self.curPitch < self.pitch.floor() {
-                    if self.curPitch.floor() - self.moving_speed < self.pitch.floor() {
+                    if self.curPitch.floor() < self.pitch.floor() {
                         mov_pitch = (self.curPitch.floor() + self.moving_speed).to_radians();
                         self.curPitch += self.moving_speed;
                     } else {
-                        //mov_pitch = self.pitch.floor();
-                        //self.curPitch = self.pitch.floor();
                         self.moving = false;
                     }
+                }
+
+                if self.curPitch.floor() == self.pitch.floor() {
+                    mov_pitch = self.pitch.to_radians();
+                }
+                if self.curYaw.floor() == self.yaw.floor() {
+                    mov_yaw = self.yaw.to_radians();
                 }
 
                 if self.curYaw.floor() == self.yaw.floor() && self.curPitch.floor() == self.pitch.floor() {
